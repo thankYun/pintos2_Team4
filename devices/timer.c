@@ -126,8 +126,12 @@ timer_print_stats (void) {
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
-	ticks++;
+	ticks++;	// Number of timer ticks since OS booted.
 	thread_tick ();
+	if (ticks >= get_next_tick_to_awake())
+	{
+		thread_awake(ticks);
+	}
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
