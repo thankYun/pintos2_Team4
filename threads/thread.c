@@ -28,6 +28,9 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* ready list와 비슷한 방식으로 sleep_list 추가!*/
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -62,6 +65,8 @@ static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
+
+int64_t next_tick_to_awake = INT64_MAX;
 
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
@@ -108,6 +113,7 @@ thread_init (void) {
 	/* Init the globla thread context */
 	lock_init (&tid_lock);
 	list_init (&ready_list);
+	list_init (&sleep_list); // ready list와 같이 초가화!
 	list_init (&destruction_req);
 
 	/* Set up a thread structure for the running thread. */
@@ -238,11 +244,11 @@ thread_unblock (struct thread *t) {
 
 	ASSERT (is_thread (t));
 
-	old_level = intr_disable ();
-	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
-	t->status = THREAD_READY;
-	intr_set_level (old_level);
+	old_level = intr_disable (); // 인터럽트 비활성화 이전 인터럽트를 old_level에 저장.
+	ASSERT (t->status == THREAD_BLOCKED); // blocked 상태여야
+	list_push_back (&ready_list, &t->elem); // t의 알람링크를 ready_list에 추가.
+	t->status = THREAD_READY; // 레디 상태로 설정.
+	intr_set_level (old_level); // 인터럽트 다시 활성화
 }
 
 /* Returns the name of the running thread. */
@@ -296,16 +302,16 @@ thread_exit (void) {
    may be scheduled again immediately at the scheduler's whim. */
 void
 thread_yield (void) {
-	struct thread *curr = thread_current ();
+	struct thread *curr = thread_current (); // 현재 실행 되고 있는 thread를 반환
 	enum intr_level old_level;
 
 	ASSERT (!intr_context ());
 
-	old_level = intr_disable ();
+	old_level = intr_disable (); // 인터럽트를 비활성하고 이전 인터럽트의 상태를 반환 
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
-	do_schedule (THREAD_READY);
-	intr_set_level (old_level);
+		list_push_back (&ready_list, &curr->elem); // 주어진 entry 
+	do_schedule (THREAD_READY); // 컨텍스트 스위치 작업을 수행
+	intr_set_level (old_level);  // 인자로 전달된 인터럽트 상태로 인터럽트를 설정하고 이전 인터럽트 상태를 반환
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
@@ -587,4 +593,53 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+void thread_sleep(int64_t ticks){
+	struct thread *curr = thread_current (); // 현재 실행 되고 있는 thread를 반환
+	enum intr_level old_level;
+
+	ASSERT (!intr_context ());
+
+	old_level = intr_disable (); // 인터럽트를 비활성하고 이전 인터럽트의 상태를 반환 
+	if (curr != idle_thread)
+		curr -> wakeup_tick = ticks;
+		list_push_back (&sleep_list, &curr->elem); // 주어진 entry
+		update_next_tick_to_awake(ticks);
+	thread_block();
+	// do_schedule (THREAD_BLOCKED); // 컨텍스트 스위치 작업을 수행
+	intr_set_level (old_level);  // 인자로 전달된 인터럽트 상태로 인터럽트를 설정하고 이전 인터럽트 상태를 반환
+}
+
+void thread_awake(int64_t ticks){
+	struct list_elem *cur_elem;
+	enum intr_level old_level;
+	int64_t tmp_tick = INT64_MAX;
+
+	cur_elem = list_begin(&sleep_list);
+	
+	while (cur_elem != list_end (&sleep_list)){
+		struct thread *curr = list_entry(cur_elem, struct thread, elem);
+		if (curr->wakeup_tick <= ticks){
+			cur_elem = list_remove(cur_elem);
+			thread_unblock(curr);
+		}
+		else{
+			if (tmp_tick > curr->wakeup_tick){
+				tmp_tick = curr->wakeup_tick;
+			}
+			cur_elem = list_next(cur_elem);
+		}
+	}
+	next_tick_to_awake = tmp_tick;
+}
+
+void update_next_tick_to_awake(int64_t ticks){
+	if (next_tick_to_awake > ticks){
+		next_tick_to_awake = ticks;
+	}
+}
+
+int64_t get_next_tick_to_awake(void){
+	return next_tick_to_awake;
 }

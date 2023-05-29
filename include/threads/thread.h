@@ -91,7 +91,7 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
-
+	int64_t wakeup_tick;				/* 해당 쓰레드가 깨어나야 할 tick을 저장할 필드 */
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
@@ -142,5 +142,10 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
+
+void thread_sleep(int64_t);
+void thread_awake(int64_t);
+void update_next_tick_to_awake(int64_t);
+int64_t get_next_tick_to_awake(void);
 
 #endif /* threads/thread.h */
