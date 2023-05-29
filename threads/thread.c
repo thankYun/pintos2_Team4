@@ -52,6 +52,8 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
+static int64_t next_tick_to_awake = INT64_MAX;
+ 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
@@ -369,6 +371,18 @@ int
 thread_get_recent_cpu (void) {
 	/* TODO: Your implementation goes here */
 	return 0;
+}
+
+/* update minimum tick of thread */
+void 
+update_next_tick_to_awake(int64_t tick) {
+	next_tick_to_awake = tick;
+}
+
+/* return next_tick_to_awake */
+int64_t 
+get_next_tick_to_awake(void) {
+	return next_tick_to_awake; 
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
