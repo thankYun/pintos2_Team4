@@ -213,6 +213,13 @@ thread_create (const char *name, int priority,
 	/* Add to run queue. */
 	thread_unblock (t);
 
+	/* 현재 실행중인 thread와 우선순위를 비교하여, 새로 생성된
+	thread의 우선순위가 높다면 thread_yield()를 통해 CPU를 양보 */
+	struct thread *curr = thread_current(); 
+	if (t->priority > curr->priority){
+		thread_yield();
+	}
+
 	return tid;
 }
 
@@ -246,7 +253,8 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable (); // 인터럽트 비활성화 이전 인터럽트를 old_level에 저장.
 	ASSERT (t->status == THREAD_BLOCKED); // blocked 상태여야
-	list_push_back (&ready_list, &t->elem); // t의 알람링크를 ready_list에 추가.
+	//list_push_back (&ready_list, &t->elem); // t의 알람링크를 ready_list에 추가.
+	list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
 	t->status = THREAD_READY; // 레디 상태로 설정.
 	intr_set_level (old_level); // 인터럽트 다시 활성화
 }
@@ -309,7 +317,8 @@ thread_yield (void) {
 
 	old_level = intr_disable (); // 인터럽트를 비활성하고 이전 인터럽트의 상태를 반환 
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem); // 주어진 entry 
+		//list_push_back (&ready_list, &curr->elem); // 주어진 entry
+		list_insert_ordered(&ready_list, &curr->elem, cmp_priority, NULL);
 	do_schedule (THREAD_READY); // 컨텍스트 스위치 작업을 수행
 	intr_set_level (old_level);  // 인자로 전달된 인터럽트 상태로 인터럽트를 설정하고 이전 인터럽트 상태를 반환
 }
@@ -318,6 +327,8 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	// 현재 쓰레드의 우선순위와 ready_list에서 가장 높은 우선 순위를 비교하여 스케쥴링 하는 함수 호출
+	test_max_priority();
 }
 
 /* Returns the current thread's priority. */
@@ -642,4 +653,31 @@ void update_next_tick_to_awake(int64_t ticks){
 
 int64_t get_next_tick_to_awake(void){
 	return next_tick_to_awake;
+}
+
+void
+test_max_priority(void){
+	struct list_elem *cur_elem;
+
+	cur_elem = list_begin(&ready_list);
+
+	struct thread *thr = list_entry(cur_elem, struct thread, elem);
+
+	struct thread *curr;
+
+	curr = thread_current();
+
+	if (curr->priority < thr->priority){
+		thread_yield();
+	}
+}
+
+bool
+cmp_priority(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED){
+	struct thread *first = list_entry(a_, struct thread, elem);
+	struct thread *second = list_entry(b_, struct thread, elem);
+	if (first->priority > second->priority){
+		return 1;
+	}
+	return 0;
 }
