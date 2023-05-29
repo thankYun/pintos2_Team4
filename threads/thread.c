@@ -158,6 +158,26 @@ thread_tick (void) {
 		intr_yield_on_return ();
 }
 
+void 
+thread_sleep(int64_t ticks) {
+	struct thread *curr = thread_current();
+	enum intr_level old_level;
+
+	old_level = intr_disable ();
+
+	if (curr != idle_thread) {
+		curr->status = THREAD_BLOCKED;
+		curr->wakeup_ticks = ticks;
+		list_push_back (&sleep_list, &curr->elem);
+
+		if (next_tick_to_awake > ticks)
+		{
+			update_next_tick_to_awake(ticks);
+		}
+	}
+	schedule();
+	intr_set_level (old_level);
+}
 /* Prints thread statistics. */
 void
 thread_print_stats (void) {
