@@ -180,6 +180,38 @@ thread_sleep(int64_t ticks) {
 	schedule();
 	intr_set_level (old_level);
 }
+
+/*
+wake up tread if wakeup_ticks of thread is over ticks
+*/
+void
+thread_awake(int64_t ticks)
+{
+	struct list_elem *e = list_begin(&sleep_list);
+	enum intr_level old_level;
+
+	old_level = intr_disable ();
+	next_tick_to_awake = INT64_MAX;
+	while (e != list_end(&sleep_list))
+	{
+		struct thread *t = list_entry(e, struct thread, elem);
+		if (t->wakeup_ticks <= ticks)
+		{
+			e = list_remove(e);
+			thread_unblock(t);	// unblock the thead and make it ready to be scheduled
+		}
+		else {
+			if (t->wakeup_ticks < next_tick_to_awake)
+			{
+				next_tick_to_awake = t->wakeup_ticks;
+
+			}
+			e = list_next(e);
+		}		
+	}
+	intr_set_level(old_level);
+}
+
 /* Prints thread statistics. */
 void
 thread_print_stats (void) {
