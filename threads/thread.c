@@ -662,3 +662,16 @@ allocate_tid (void) {
 
 	return tid;
 }
+
+bool
+cmp_priority (const struct list_elem* a_, 
+			const struct list_elem* b_, void* aux UNUSED)
+{
+	struct thread *a_thread = list_entry(a_, struct thread, elem);
+	struct thread *b_thread = list_entry(b_, struct thread, elem);
+	if (a_thread->priority >= b_thread->priority)
+	{
+		return true;
+	}
+	else return false;
+}
