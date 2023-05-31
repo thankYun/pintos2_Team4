@@ -658,17 +658,13 @@ int64_t get_next_tick_to_awake(void){
 void
 test_max_priority(void){
 	struct list_elem *cur_elem;
-
 	cur_elem = list_begin(&ready_list);
-
 	struct thread *thr = list_entry(cur_elem, struct thread, elem);
 
-	struct thread *curr;
-
-	curr = thread_current();
-
-	if (curr->priority < thr->priority){
-		thread_yield();
+	if (!list_empty(&ready_list)){
+		if (thread_current()->priority < thr->priority){
+			thread_yield();
+		}
 	}
 }
 
@@ -676,6 +672,7 @@ bool
 cmp_priority(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED){
 	struct thread *first = list_entry(a_, struct thread, elem);
 	struct thread *second = list_entry(b_, struct thread, elem);
+
 	if (first->priority > second->priority){
 		return 1;
 	}
