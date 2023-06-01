@@ -94,6 +94,11 @@ struct thread {
 	int64_t wakeup_tick;				/* 해당 쓰레드가 깨어나야 할 tick을 저장할 필드 */
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+	/*priority donation 관련 항목 추가*/
+	int init_priority;					/* donation 이후 우선순위를 초기화하기 위해 초기값 저장 */
+	struct lock *wait_on_lock;			/* 해당 스레드가 대기 하고 있는 lock자료구조의 주소를 저장 */
+	struct list donations;				/* multiple donation 을 고려하기 위해 사용 */
+	struct list_elem donation_elem;		/* multiple donation 을 고려하기 위해 사용 */
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -150,5 +155,12 @@ int64_t get_next_tick_to_awake(void);
 
 void test_max_priority(void);
 bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
+void donate_priority(void);
+void remove_with_lock(struct lock *lock);
+void refresh_priority(void);
+
+bool
+thread_compare_donate_priority(const struct list_elem *x, const struct list_elem *y, void *aux UNUSED);
 
 #endif /* threads/thread.h */
