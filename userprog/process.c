@@ -163,30 +163,54 @@ error:
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
-	bool success;
+    bool success;
+    struct thread *cur = thread_current();
 
-	/* We cannot use the intr_frame in the thread structure.
-	 * This is because when current thread rescheduled,
-	 * it stores the execution information to the member. */
-	struct intr_frame _if;
-	_if.ds = _if.es = _if.ss = SEL_UDSEG;
-	_if.cs = SEL_UCSEG;
-	_if.eflags = FLAG_IF | FLAG_MBS;
+    //intr_frame 권한설정
+    struct intr_frame _if;
+    _if.ds = _if.es = _if.ss = SEL_UDSEG;
+    _if.cs = SEL_UCSEG;
+    _if.eflags = FLAG_IF | FLAG_MBS;
 
-	/* We first kill the current context */
-	process_cleanup ();
+    /* We first kill the current context */
+    process_cleanup();
 
-	/* And then load the binary */
-	success = load (file_name, &_if);
+    // for argument parsing
+    char *argv[64]; // argument 배열
+    int argc = 0;    // argument 개수
 
-	/* If load failed, quit. */
-	palloc_free_page (file_name);
-	if (!success)
-		return -1;
+    char *token;    
+    char *save_ptr; // 분리된 문자열 중 남는 부분의 시작주소
+    token = strtok_r(file_name, " ", &save_ptr);
+    while (token != NULL)
+    {
+        argv[argc] = token;
+        token = strtok_r(NULL, " ", &save_ptr);
+        argc++;
+    }
 
-	/* Start switched process. */
-	do_iret (&_if);
-	NOT_REACHED ();
+    /* And then load the binary */
+    success = load(file_name, &_if);
+
+    /* If load failed, quit. */
+    if (!success)
+    {
+        palloc_free_page(file_name);
+        return -1;
+    }
+
+    // 스택에 인자 넣기
+    void **rspp = &_if.rsp;
+    argument_stack(argv, argc, rspp);
+    _if.R.rdi = argc;
+    _if.R.rsi = (uint64_t)*rspp + sizeof(void *);
+
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)*rspp, true);
+    palloc_free_page(file_name);
+
+    /* Start switched process. */
+    do_iret(&_if);
+    NOT_REACHED();
 }
 
 
@@ -203,7 +227,8 @@ int
 process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
-	 * XXX:       implementing the process_wait. */
+	 * XXX:       implementing thfe process_wait. */
+	for (int i=0;i<100000000;i++){}
 	return -1;
 }
 
@@ -637,3 +662,50 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 #endif /* VM */
+
+
+void argument_stack(char **argv, int argc, void **rsp)
+{
+	// keypoint는 rsp 의 (char **) 를 포인터를 2개 이상 넣어야 함.
+	//printf("\n abcd~~ abcd~~~ 0x%02X \n", *(uint16_t **)rsp);
+    // Save argument strings (character by character)
+	// 끝부터 처음까지 argc-1 부터 시작
+    for (int i = argc - 1; i >= 0; i--)
+    {
+		// argv_len = argv[i]의 길이
+        int argv_len = strlen(argv[i]);
+		// argv의 길이만큼 저장.
+        for (int j = argv_len; j >= 0; j--)
+        {	
+			// argv_char은 argv[i][j] 할당하여 저장
+            char argv_char = argv[i][j];
+            (*rsp)--; // -8만큼 이동
+            **(char **)rsp = argv_char; // 1 byte // 이중(다중) 포인터에 char 형으로 저장한다.
+        }
+        argv[i] = *(char **)rsp; // 배열에 rsp 주소 넣기
+    }
+
+    // Word-align padding
+    int pad = (int)*rsp % 8; // 64bit 컴퓨터라 8비트로 나누기 때문에, 패딩은 rsp % 8 = 0 으로 지정. (주소값을 8 나머지 으로)
+    for (int k = 0; k < pad; k++) // k < pad 
+    {
+        (*rsp)--; // 8만큼 뺀다.
+        **(uint8_t **)rsp = 0; // rsp의 값을 uint8_t 0 으로 저장한다.
+    }
+
+    // Pointers to the argument strings
+    (*rsp) -= 8;
+    **(char ***)rsp = 0; // 마지막 부분을 0으로 지정
+
+    for (int i = argc - 1; i >= 0; i--)
+    {
+        (*rsp) -= 8; // 8byte 만큼 빼면서 
+        **(char ***)rsp = argv[i]; // argv[i]의 주소값을 저장
+    }
+
+    // Return address
+	printf("\n abcd~~ abcd~~~ 0x%02X \n", *(uint16_t **)rsp);
+    (*rsp) -= 8; // 마지막 값을
+	// 마지막 fake address 값을 넣어준다.
+    **(void ***)rsp = 0; // rsp의 값을 0으로 지정한다.
+}
