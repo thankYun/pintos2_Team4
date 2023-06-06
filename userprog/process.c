@@ -182,10 +182,11 @@ process_exec (void *f_name) {
     char *token;    
     char *save_ptr; // 분리된 문자열 중 남는 부분의 시작주소
     token = strtok_r(file_name, " ", &save_ptr);
+	// 파일이름을 " "(띄어쓰기) 기준으로 짜르고 남은 부분의 시작주소를 저장한다.(NULL 할때 쓰게)
     while (token != NULL)
     {
         argv[argc] = token;
-        token = strtok_r(NULL, " ", &save_ptr);
+        token = strtok_r(NULL, " ", &save_ptr); // 마지막 까지 단어 저장
         argc++;
     }
 
@@ -200,10 +201,10 @@ process_exec (void *f_name) {
     }
 
     // 스택에 인자 넣기
-    void **rspp = &_if.rsp;
-    argument_stack(argv, argc, rspp);
-    _if.R.rdi = argc;
-    _if.R.rsi = (uint64_t)*rspp + sizeof(void *);
+    void **rspp = &_if.rsp; // rsp 초기값 USER_STACK의 주소
+    argument_stack(argv, argc, rspp); // argument 스택 동작
+    _if.R.rdi = argc; // rdi(stack의 첫번째 인자?)에 크기 저장
+    _if.R.rsi = (uint64_t)*rspp + sizeof(void *); // 스택에 저장된 주소들의 첫번째 주소 argv[0]의 주소 저장
 
 	hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)*rspp, true);
     palloc_free_page(file_name);
