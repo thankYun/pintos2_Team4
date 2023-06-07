@@ -21,6 +21,8 @@
 #ifdef VM
 #include "vm/vm.h"
 #endif
+#define BLANK_DELIMETER " "
+#define MAXIMUM_NUMBER 128
 
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
