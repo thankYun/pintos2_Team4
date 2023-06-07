@@ -329,6 +329,10 @@ load (const char *file_name, struct intr_frame *if_) {
 	bool success = false;
 	int i;
 
+	char *copy_filename;	// file_name이 const 이므로 변경할 수 없기 때문에, 새롭게 작성해준다.
+	copy_filename = palloc_get_page (0);
+	strlcpy (copy_filename, file_name, MAXIMUM_NUMBER);
+
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
