@@ -437,6 +437,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
 
+	argument_stack(argv, argc, if_);	// argv: list, argc: token_count, if_: interrupt_frame
 	success = true;
 
 done:
@@ -657,3 +658,49 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 #endif /* VM */
+
+void 
+argument_stack(char **argv, int argc, struct intr_frame *if_)
+{
+	// file_name 파싱 결과를 담을 배열 생성 -> s_argv
+	char *arg_address[MAXIMUM_NUMBER];
+
+	// word-align 전까지
+	// argv 뒤에서부터 인자들을 userstack에 저장한다.
+	// /bin/ls -l foo bar
+	for (int i = argc-1; i >= 0; i--)
+	{
+		int arg_len = strlen(argv[i]) + 1;	// 1은 sentinel(\0)을 의미한다.
+		if_->rsp = if_->rsp - (arg_len);	// 인자 크기만큼 스택을 늘려준다., 시야를 더 늘린다. 스택 포인터를 이동시킨다.
+		memcpy(if_->rsp, argv[i], arg_len);
+		arg_address[i] = if_->rsp;
+	}
+	
+	// word-algin
+	while (if_->rsp % 8 != 0)
+	{
+		if_->rsp--;
+		*(uint8_t *) if_->rsp = 0;	// 포인터 타입이 unit8_t이니까 rsp 데이터에 0을 넣는다.-> 패딩을 채운다. 
+	}
+
+	// argv를 채운다.
+	for (int i = argc; i >= 0; i--)
+	{
+		if_->rsp = if_->rsp - 8;
+		if (i == argc)	// null sentinel 자리
+		{
+			*(char **) if_->rsp = 0;
+			// memset(if_->rsp, 0, sizeof(char **));
+		}
+		else
+			memcpy(if_->rsp, &arg_address[i], sizeof(char *));
+	}
+	
+	// rdi, rsi 
+	if_->R.rdi = argc;
+	if_->R.rsi = if_->rsp;
+
+	// fake address를 저장한다.
+	if_->rsp = if_->rsp - 8;
+	memset(if_->rsp, 0, sizeof(char *));
+}
