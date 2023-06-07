@@ -339,10 +339,26 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	process_activate (thread_current ());
 
+	// command line parsing
+	char *argv[MAXIMUM_NUMBER/2];
+	char *token, *save_ptr;
+	int argc = 0;
+	
+	token = strtok_r(copy_filename, BLANK_DELIMETER, &save_ptr);
+	argv[argc] = token;
+
+	while (token != NULL){
+		token = strtok_r(NULL, BLANK_DELIMETER, &save_ptr);
+		argc++;
+		argv[argc] = token;
+	}
+
+	copy_filename = argv[0];
+
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	file = filesys_open (copy_filename);
 	if (file == NULL) {
-		printf ("load: %s: open failed\n", file_name);
+		printf ("load: %s: open failed\n", copy_filename);
 		goto done;
 	}
 
