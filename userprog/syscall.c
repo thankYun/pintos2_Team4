@@ -41,11 +41,18 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
+		case SYS_HALT:
+			halt();
+			break;
 		case SYS_WRITE:
 			write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
 }
 
+void
+halt (void) {
+	power_off();
+}
 int
 write (int fd, const void *buffer, unsigned size) {
 	if (fd == WRITE_FILE_NUMBER)
