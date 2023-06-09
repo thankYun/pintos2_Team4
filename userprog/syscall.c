@@ -7,7 +7,10 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#include "include/lib/user/syscall.h"
+#include "filesys/filesys.h"
 
+#define READ_FILE_NUMBER 0
 #define WRITE_FILE_NUMBER 1
 
 void syscall_entry (void);
@@ -59,6 +62,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_EXIT:
 			exit(f->R.rdi);
 			break;
+		case SYS_CREATE:
+			create(f->R.rdi, f->R.rsi);
+			break;
 		case SYS_WRITE:
 			write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
@@ -84,6 +90,17 @@ exit (int status) {
 	thread_exit();
 }
 
+bool
+create(const char *file, unsigned initial_size) {
+	validate_address(file);
+
+	if (filesys_create(file, initial_size))
+	{
+		return true;
+	} else {
+		return false;
+	}
+}
 /**
 fd에 크기 바이트를 작성하고
 실제로 작성된 byte를 반환한다. 
