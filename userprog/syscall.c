@@ -8,6 +8,8 @@
 #include "threads/flags.h"
 #include "intrinsic.h"
 
+#define WRITE_FILE_NUMBER 1
+
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -41,18 +43,52 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
+	int sys_number = f->R.rax;
+	// printf("rdi: %d\n", f->R.rdi);
+
+	// rdi -> rsi -> rdx -> r10 -> r8 -> r9
+	/**
+	 * 레지스터는 들어온 순서만을 의미한다. 
+	*/
+	switch (sys_number)	{
 		case SYS_HALT:
 			halt();
+			break;
+		case SYS_EXIT:
+			exit(f->R.rdi);
 			break;
 		case SYS_WRITE:
 			write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
+	
+		default:
+			break;
+	}
+	// printf("syscall Number: %d\n", sys_number);
+	// printf ("system call!\n");
+	// thread_exit ();
 }
 
 void
 halt (void) {
 	power_off();
 }
+
+void
+exit (int status) {
+	struct thread *current_thread = thread_current();	
+	printf("%s: exit(%d)\n", current_thread->name, status);
+
+	thread_exit();
+}
+
+/**
+fd에 크기 바이트를 작성하고
+실제로 작성된 byte를 반환한다. 
+ * fd가 1이면 putbuf() 함수를 사용한다.
+ * file_write 함수 사용
+*/
+
 int
 write (int fd, const void *buffer, unsigned size) {
 	if (fd == WRITE_FILE_NUMBER)
