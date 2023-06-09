@@ -44,7 +44,9 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	int sys_number = f->R.rax;
-	// printf("rdi: %d\n", f->R.rdi);
+	int address = f->rsp;
+
+	validate_address(address);
 
 	// rdi -> rsi -> rdx -> r10 -> r8 -> r9
 	/**
@@ -96,4 +98,17 @@ write (int fd, const void *buffer, unsigned size) {
 		putbuf(buffer, size);
 	}
 	return size;
+}
+
+void
+validate_address(void *addr){
+	// VADDR이 user virtual address인가
+	if (!is_user_vaddr(addr)) {
+		exit(-1);
+	}
+
+	// 할당된 공간에 접근하였는가
+	if (pml4_get_page(thread_current()->pml4, addr) == NULL) {
+		exit(-1);
+	}
 }
