@@ -42,6 +42,8 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+
+	lock_init(&filesys_lock);
 }
 
 /* The main system call interface */
@@ -76,6 +78,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_FILESIZE:
 			f->R.rax = filesize(f->R.rdi);
 			break;
+		case SYS_READ:
+			f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
 		case SYS_WRITE:
 			write(f->R.rdi, f->R.rsi, f->R.rdx);
@@ -173,6 +177,48 @@ validate_fd(int fd){
 		exit(-1);
 	}
 }
+
+int 
+read (int fd, void *buffer, unsigned size) {
+	validate_address(buffer);				// 버퍼 시작 주소 확인
+	validate_address(buffer + size - 1);	// 버퍼 끝 주소 확인
+	validate_fd(fd);
+
+	unsigned char *buf = buffer;
+	int read_byte = 0;
+
+	// 파일을 읽는다.
+	struct file *read_file = get_file_struct(fd);
+
+	if (read_file == NULL) 
+		return -1;
+	
+	// STDIN_FILENO일 때, read한다.
+	if (fd == STDIN_FILENO) {
+		char key;
+		for (read_byte = 0; read_byte < size; read_byte++) {
+			key = input_getc();
+			*buf++ = key;
+			if (key == '\0') {
+				break;
+			}
+		}	
+	}
+
+	// STDOUT_FILENO일 때, -1을 반환한다.
+	else if (fd == STDOUT_FILENO) {
+		return -1;
+	}
+
+	// 그 외의 경우에는 file_read() 함수를 이용해서 읽어온다.
+	else {
+		lock_acquire(&filesys_lock);
+		read_byte = file_read(read_file, buffer, size);
+		lock_release(&filesys_lock);
+	}
+	return read_byte;
+}
+
 struct file
 *get_file_struct(int fd) {
 	struct thread *c_thread = thread_current();
