@@ -107,6 +107,28 @@ remove(const char *file) {
 
 	return filesys_remove(file);
 }
+int
+add_file_to_fdt(struct file *file) {
+	struct thread *c_thread = thread_current();	// 현재 current_thread를 가져온다.
+	struct file **fdt = c_thread->fd_table;		// fdt를 가져온다.
+
+	// 현재 thread의 f_index를 확인한다.
+	int fd = c_thread->f_index;
+	
+	while (fdt[fd] != NULL && fd < MAX_FDT_SIZE)	{
+		fd += 1;
+	}
+	
+	// 범위 밖이면 -1을 반환한다. -> 다시 닫는다.
+	if (fd == MAX_FDT_SIZE)	{
+		return -1;
+	}
+
+	c_thread->f_index = fd;
+	fdt[fd] = file;
+	
+	return fd;
+}
 	{
 		return true;
 	} else {
