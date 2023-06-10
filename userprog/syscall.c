@@ -16,6 +16,8 @@
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
+struct file *get_file_struct(int);
+
 /* System call.
  *
  * Previously system call services was handled by the interrupt handler
@@ -171,12 +173,15 @@ validate_fd(int fd){
 		exit(-1);
 	}
 }
-	{
-		return true;
-	} else {
-		return false;
-	}
+struct file
+*get_file_struct(int fd) {
+	struct thread *c_thread = thread_current();
+	struct file **fdt = c_thread->fd_table;
+	struct file *file = fdt[fd];
+
+	return file;
 }
+
 /**
 fd에 크기 바이트를 작성하고
 실제로 작성된 byte를 반환한다. 
