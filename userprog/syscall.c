@@ -65,6 +65,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CREATE:
 			create(f->R.rdi, f->R.rsi);
 			break;
+		case SYS_REMOVE:
+			remove(f->R.rdi);
+			break;
 		case SYS_WRITE:
 			write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
@@ -94,7 +97,12 @@ bool
 create(const char *file, unsigned initial_size) {
 	validate_address(file);
 
-	if (filesys_create(file, initial_size))
+bool 
+remove(const char *file) {
+	validate_address(file);
+
+	return filesys_remove(file);
+}
 	{
 		return true;
 	} else {
