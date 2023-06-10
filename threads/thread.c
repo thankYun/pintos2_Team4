@@ -193,6 +193,16 @@ thread_create (const char *name, int priority,
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
 
+	// system call
+	t->fd_table = palloc_get_multiple(PAL_ZERO, MAX_FDT_SIZE);
+	if (t->fd_table == NULL) {
+		return TID_ERROR;
+	}
+
+	t->f_index = 2;
+	t->fd_table[0] = 1;
+	t->fd_table[1] = 2;
+
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
 	t->tf.rip = (uintptr_t) kernel_thread;

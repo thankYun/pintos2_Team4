@@ -29,6 +29,8 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+#define MAX_FDT_SIZE 128	
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -95,6 +97,8 @@ struct thread {
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+	struct file **fd_table;
+	int f_index;			// 하나의 thread는 여러 파일을 관리한다. 관리하고 있는 파일들을 f_index로 관리한다.
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
