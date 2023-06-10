@@ -82,7 +82,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
 		case SYS_WRITE:
-			write(f->R.rdi, f->R.rsi, f->R.rdx);
+			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
 	
 		default:
@@ -237,11 +237,31 @@ fd에 크기 바이트를 작성하고
 
 int
 write (int fd, const void *buffer, unsigned size) {
-	if (fd == WRITE_FILE_NUMBER)
-	{
+	validate_address(buffer);
+	validate_address(buffer + size - 1);
+	validate_fd(fd);
+
+	int written_byte = 0;
+
+	struct file *write_file = get_file_struct(fd);
+
+	if (write_file == NULL)
+		return -1;
+
+	// STDOUT_FILENO일 때 -> putbuff 사용
+	if (fd == STDOUT_FILENO) {
 		putbuf(buffer, size);
 	}
-	return size;
+	else if (fd == STDIN_FILENO) {
+		return -1;
+	}
+	else {
+		lock_acquire(&filesys_lock);
+		written_byte = file_write(write_file, buffer, size);
+		lock_release(&filesys_lock);		
+	}
+	
+	return written_byte;
 }
 
 void
