@@ -68,6 +68,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_REMOVE:
 			f->R.rax = remove(f->R.rdi);
 			break;
+		case SYS_OPEN:
+			f->R.rax = open(f->R.rdi);
+			break;
 			break;
 		case SYS_WRITE:
 			write(f->R.rdi, f->R.rsi, f->R.rdx);
@@ -107,6 +110,25 @@ remove(const char *file) {
 
 	return filesys_remove(file);
 }
+
+int
+open(const char *file) {
+	validate_address(file);
+
+	struct file *opened_file = filesys_open(file);
+	 
+	// file이 생성되었는지 확인한다.
+	if (opened_file == NULL){
+		// printf("확인 필요\n");
+		return -1;
+	}
+
+	// file을 fdt에 추가하고 index를 반환한다.
+	int fd = add_file_to_fdt(opened_file);
+
+	return fd;
+}
+
 int
 add_file_to_fdt(struct file *file) {
 	struct thread *c_thread = thread_current();	// 현재 current_thread를 가져온다.
