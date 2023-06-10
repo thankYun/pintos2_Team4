@@ -71,6 +71,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_OPEN:
 			f->R.rax = open(f->R.rdi);
 			break;
+		case SYS_FILESIZE:
+			f->R.rax = filesize(f->R.rdi);
+			break;
 			break;
 		case SYS_WRITE:
 			write(f->R.rdi, f->R.rsi, f->R.rdx);
@@ -150,6 +153,23 @@ add_file_to_fdt(struct file *file) {
 	fdt[fd] = file;
 	
 	return fd;
+}
+
+int
+filesize(int fd) {
+	validate_fd(fd);
+
+	struct thread *c_thread = thread_current();
+	struct file **fdt = c_thread->fd_table;
+
+	return file_length(fdt[fd]);
+}
+
+void
+validate_fd(int fd){
+	if (fd < 0 || fd >= MAX_FDT_SIZE) {
+		exit(-1);
+	}
 }
 	{
 		return true;
