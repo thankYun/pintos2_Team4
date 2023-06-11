@@ -87,6 +87,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_SEEK:
 			seek(f->R.rdi, f->R.rsi);
 			break;
+		case SYS_TELL:
+			f->R.rax = tell(f->R.rdi);
+			break;
 		default:
 			break;
 	}
@@ -275,6 +278,17 @@ seek (int fd, unsigned position) {
 	}
 	
 	file_seek(seek_file, position);
+}
+
+unsigned 
+tell (int fd) {
+	validate_fd(fd);
+	struct file *tell_file = get_file_struct(fd);
+	if (tell_file == NULL) {
+		return;
+	}
+
+	return file_tell(tell_file);
 }
 void
 validate_address(void *addr){
