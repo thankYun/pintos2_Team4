@@ -94,6 +94,7 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	int64_t wakeup_ticks;
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
@@ -121,6 +122,8 @@ extern bool thread_mlfqs;
 
 void thread_init (void);
 void thread_start (void);
+void thread_sleep (int64_t);
+void thread_awake(int64_t);
 
 void thread_tick (void);
 void thread_print_stats (void);
@@ -141,11 +144,18 @@ void thread_yield (void);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
+void get_max_priority (void);
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
+
+void update_next_tick_to_awake (int64_t);
+
+int64_t get_next_tick_to_awake (void);
 
 #endif /* threads/thread.h */
