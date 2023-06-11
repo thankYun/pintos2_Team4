@@ -90,6 +90,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_TELL:
 			f->R.rax = tell(f->R.rdi);
 			break;
+		case SYS_CLOSE:
+			close(f->R.rdi);
+			break;
 		default:
 			break;
 	}
@@ -290,6 +293,25 @@ tell (int fd) {
 
 	return file_tell(tell_file);
 }
+
+void
+close (int fd) {
+	validate_fd(fd);
+	struct file *close_file = get_file_struct(fd);
+	if (close_file == NULL) {
+		return;
+	}
+
+	file_close(close_file);
+	remove_fd(fd);
+}
+
+void 
+remove_fd (int fd) {
+	struct thread *current_thread = thread_current();
+	current_thread->fd_table[fd] = NULL;
+}
+
 void
 validate_address(void *addr){
 	// VADDR이 user virtual address인가
