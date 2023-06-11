@@ -84,7 +84,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
-	
+		case SYS_SEEK:
+			seek(f->R.rdi, f->R.rsi);
+			break;
 		default:
 			break;
 	}
@@ -264,6 +266,16 @@ write (int fd, const void *buffer, unsigned size) {
 	return written_byte;
 }
 
+void
+seek (int fd, unsigned position) {
+	validate_fd(fd);
+	struct file *seek_file = get_file_struct(fd);
+	if (seek_file == NULL) {
+		return;
+	}
+	
+	file_seek(seek_file, position);
+}
 void
 validate_address(void *addr){
 	// VADDR이 user virtual address인가
