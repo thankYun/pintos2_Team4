@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "syscall.h": "c",
+        "unistd.h": "c",
+        "intrinsic.h": "c",
+        "thread.h": "c",
+        "process.h": "c",
+        "gdt.h": "c",
+        "vga.h": "c",
+        "*.inc": "c",
+        "loader.h": "c",
+        "vaddr.h": "c",
+        "init.h": "c",
+        "flags.h": "c",
+        "filesys.h": "c",
+        "synch.h": "c",
+        "input.h": "c",
+        "off_t.h": "c"
+    }
+}
