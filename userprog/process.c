@@ -162,6 +162,8 @@ error:
 
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
+// 사용자가 입력한 명령을 수행하도록 프로그램을 메모리에 올려 실행한다.
+// 실행 프로그램 파일과 옵션을 구분하는 작업을 추가한다.
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
@@ -179,6 +181,7 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
 	/* And then load the binary */
+	// file_name과 interrupt_frame을 load한다.
 	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
@@ -186,6 +189,10 @@ process_exec (void *f_name) {
 	if (!success)
 		return -1;
 
+	/**
+	 * Project2: Command Line Parsing 
+	 * parsing 결과 디버깅
+	*/
 	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 	
 	/* Start switched process. */
@@ -208,7 +215,12 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	for (int i = 0; i < 10000000000; i++)
+
+	/**
+	 * Project2: Command Line Parsing 
+	 * 프로세스 종료 대기
+	*/
+	for (int i = 0; i < 100000000; i++)
 	{
 		/* code */
 	}
@@ -338,8 +350,11 @@ load (const char *file_name, struct intr_frame *if_) {
 	bool success = false;
 	int i;
 
-	char *copy_filename;	// file_name이 const 이므로 변경할 수 없기 때문에, 새롭게 작성해준다.
+	/* Project2: Command Line Parsing */
+	// file_name이 const 이므로 변경할 수 없기 때문에, 복사해준다.
+	char *copy_filename;
 	copy_filename = palloc_get_page (0);
+	// 생성한 copy_filename 문자열에 file_name을 복제해준다.
 	strlcpy (copy_filename, file_name, MAXIMUM_NUMBER);
 
 	/* Allocate and activate page directory. */
@@ -353,9 +368,12 @@ load (const char *file_name, struct intr_frame *if_) {
 	char *token, *save_ptr;
 	int argc = 0;
 	
+	// 첫번째 이름을 받아온다.
+	// save_ptr은 앞 문자열을 자르고 남은 문자열의 가장 앞을 가리키는 포인터 주소값을 말한다.
 	token = strtok_r(copy_filename, BLANK_DELIMETER, &save_ptr);
-	argv[argc] = token;
-
+	argv[argc] = token;		// 첫번째 인자가 저장된다.(ex. args-single onearg라면, args-single 저장)
+	
+	// 공백을 기준으로 문자열을 잘라서 argv 배열에 저장한다.
 	while (token != NULL){
 		token = strtok_r(NULL, BLANK_DELIMETER, &save_ptr);
 		argc++;
@@ -445,7 +463,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
-
+	/* Project2: Argument Stack */
 	argument_stack(argv, argc, if_);	// argv: list, argc: token_count, if_: interrupt_frame
 	success = true;
 
@@ -668,24 +686,25 @@ setup_stack (struct intr_frame *if_) {
 }
 #endif /* VM */
 
+/* Project2: Command Line Parsing */
 void 
 argument_stack(char **argv, int argc, struct intr_frame *if_)
 {
-	// file_name 파싱 결과를 담을 배열 생성 -> s_argv
+	// file_name 파싱 결과를 담을 배열을 생성한다.
 	char *arg_address[MAXIMUM_NUMBER];
 
 	// word-align 전까지
-	// argv 뒤에서부터 인자들을 userstack에 저장한다.
+	// argv 뒤에서부터 인자들을 userstack에 저장한다.(NULL 끝 값은 제외한다.)
 	// /bin/ls -l foo bar
 	for (int i = argc-1; i >= 0; i--)
 	{
 		int arg_len = strlen(argv[i]) + 1;	// 1은 sentinel(\0)을 의미한다.
-		if_->rsp = if_->rsp - (arg_len);	// 인자 크기만큼 스택을 늘려준다., 시야를 더 늘린다. 스택 포인터를 이동시킨다.
+		if_->rsp = if_->rsp - (arg_len);	// 인자 크기만큼 스택 포인터를 이동시킨다.
 		memcpy(if_->rsp, argv[i], arg_len);
-		arg_address[i] = if_->rsp;
+		arg_address[i] = if_->rsp;			// arg_address 배열에 현재 문자열 시작 위치를 저장한다.
 	}
 	
-	// word-algin
+	// word-algin -> 정렬하기 위해
 	while (if_->rsp % 8 != 0)
 	{
 		if_->rsp--;
@@ -699,7 +718,6 @@ argument_stack(char **argv, int argc, struct intr_frame *if_)
 		if (i == argc)	// null sentinel 자리
 		{
 			*(char **) if_->rsp = 0;
-			// memset(if_->rsp, 0, sizeof(char **));
 		}
 		else
 			memcpy(if_->rsp, &arg_address[i], sizeof(char *));
