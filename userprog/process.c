@@ -21,6 +21,8 @@
 #ifdef VM
 #include "vm/vm.h"
 #endif
+#define BLANK_DELIMETER " "
+#define MAXIMUM_NUMBER 128
 
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
@@ -218,58 +220,42 @@ error:
 
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
+// 사용자가 입력한 명령을 수행하도록 프로그램을 메모리에 올려 실행한다.
+// 실행 프로그램 파일과 옵션을 구분하는 작업을 추가한다.
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
-    bool success;
-    struct thread *cur = thread_current();
+	bool success;
 
-    //intr_frame 권한설정
-    struct intr_frame _if;
-    _if.ds = _if.es = _if.ss = SEL_UDSEG;
-    _if.cs = SEL_UCSEG;
-    _if.eflags = FLAG_IF | FLAG_MBS;
+	/* We cannot use the intr_frame in the thread structure.
+	 * This is because when current thread rescheduled,
+	 * it stores the execution information to the member. */
+	struct intr_frame _if;
+	_if.ds = _if.es = _if.ss = SEL_UDSEG;
+	_if.cs = SEL_UCSEG;
+	_if.eflags = FLAG_IF | FLAG_MBS;
 
-    /* We first kill the current context */
-    process_cleanup();
+	/* We first kill the current context */
+	process_cleanup ();
 
-    // for argument parsing
-    char *argv[64]; // argument 배열
-    int argc = 0;    // argument 개수
+	/* And then load the binary */
+	// file_name과 interrupt_frame을 load한다.
+	success = load (file_name, &_if);
 
-    char *token;    
-    char *save_ptr; // 분리된 문자열 중 남는 부분의 시작주소
-    token = strtok_r(file_name, " ", &save_ptr);
-	// 파일이름을 " "(띄어쓰기) 기준으로 짜르고 남은 부분의 시작주소를 저장한다.(NULL 할때 쓰게)
-    while (token != NULL)
-    {
-        argv[argc] = token;
-        token = strtok_r(NULL, " ", &save_ptr); // 마지막 까지 단어 저장
-        argc++;
-    }
+	/* If load failed, quit. */
+	palloc_free_page (file_name);
+	if (!success)
+		return -1;
 
-    /* And then load the binary */
-    success = load(file_name, &_if);
-
-    /* If load failed, quit. */
-    if (!success)
-    {
-        palloc_free_page(file_name);
-        return -1;
-    }
-
-    // 스택에 인자 넣기
-    void **rspp = &_if.rsp; // rsp 초기값 USER_STACK의 주소
-    argument_stack(argv, argc, rspp); // argument 스택 동작
-    _if.R.rdi = argc; // rdi(stack의 첫번째 인자?)에 크기 저장
-    _if.R.rsi = (uint64_t)*rspp + sizeof(void *); // 스택에 저장된 주소들의 첫번째 주소 argv[0]의 주소 저장
-
-    palloc_free_page(file_name);
-
-	do_iret(&_if);
-	hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)*rspp, true);
-    /* Start switched process. */
-    NOT_REACHED();
+	/**
+	 * Project2: Command Line Parsing 
+	 * parsing 결과 디버깅
+	*/
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+	
+	/* Start switched process. */
+	do_iret (&_if);
+	NOT_REACHED ();
 }
 
 
@@ -286,18 +272,18 @@ int
 process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
-	 * XXX:       implementing thfe process_wait. */
-	struct thread *child = get_child_process(child_tid);
-	if (child == NULL)// 자식이 아니면 -1을 반환한다.
-		return -1;
-	// 자식이 종료될 때까지 대기한다. (process_exit에서 자식이 종료될때 sema_up 해줄 것)
-	sema_down(&child->wait_sema);
-	/* 자식이 종료됨을 알리는 `wait_sema` signal을 받으면 현재 스레드(부모)의 자식 리스트에서 제거한다. */
-	list_remove(&child->child_elem);
-	/* 자식이 완전히 종료되고 스케줄링이 이어질 수 있도록 자식에게 signal을 보낸다. */
-	sema_up(&child->exit_sema);
+   * XXX:       implementing the process_wait. */
 
-	return child->exit_status; /* 자식의 exit_status를 반환한다. */
+	/**
+	 * Project2: Command Line Parsing 
+	 * 프로세스 종료 대기
+	*/
+	for (int i = 0; i < 100000000; i++)
+	{
+		/* code */
+	}
+	
+	return -1;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -434,16 +420,42 @@ load (const char *file_name, struct intr_frame *if_) {
 	bool success = false;
 	int i;
 
+	/* Project2: Command Line Parsing */
+	// file_name이 const 이므로 변경할 수 없기 때문에, 복사해준다.
+	char *copy_filename;
+	copy_filename = palloc_get_page (0);
+	// 생성한 copy_filename 문자열에 file_name을 복제해준다.
+	strlcpy (copy_filename, file_name, MAXIMUM_NUMBER);
+
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
 		goto done;
 	process_activate (thread_current ());
 
+	// command line parsing
+	char *argv[MAXIMUM_NUMBER/2];
+	char *token, *save_ptr;
+	int argc = 0;
+	
+	// 첫번째 이름을 받아온다.
+	// save_ptr은 앞 문자열을 자르고 남은 문자열의 가장 앞을 가리키는 포인터 주소값을 말한다.
+	token = strtok_r(copy_filename, BLANK_DELIMETER, &save_ptr);
+	argv[argc] = token;		// 첫번째 인자가 저장된다.(ex. args-single onearg라면, args-single 저장)
+	
+	// 공백을 기준으로 문자열을 잘라서 argv 배열에 저장한다.
+	while (token != NULL){
+		token = strtok_r(NULL, BLANK_DELIMETER, &save_ptr);
+		argc++;
+		argv[argc] = token;
+	}
+
+	copy_filename = argv[0];
+
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	file = filesys_open (copy_filename);
 	if (file == NULL) {
-		printf ("load: %s: open failed\n", file_name);
+		printf ("load: %s: open failed\n", copy_filename);
 		goto done;
 	}
 
@@ -524,7 +536,8 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
-
+	/* Project2: Argument Stack */
+	argument_stack(argv, argc, if_);	// argv: list, argc: token_count, if_: interrupt_frame
 	success = true;
 
 done:
@@ -746,102 +759,48 @@ setup_stack (struct intr_frame *if_) {
 }
 #endif /* VM */
 
-
-void argument_stack(char **argv, int argc, void **rsp)
+/* Project2: Command Line Parsing */
+void 
+argument_stack(char **argv, int argc, struct intr_frame *if_)
 {
-	// keypoint는 rsp 의 (char **) 를 포인터를 2개 이상 넣어야 함.
-	//printf("\n abcd~~ abcd~~~ 0x%02X \n", *(uint16_t **)rsp);
-    // Save argument strings (character by character)
-	// 끝부터 처음까지 argc-1 부터 시작
-    for (int i = argc - 1; i >= 0; i--)
-    {
-		// argv_len = argv[i]의 길이
-        int argv_len = strlen(argv[i]);
-		// argv의 길이만큼 저장.
-        for (int j = argv_len; j >= 0; j--)
-        {	
-			// argv_char은 argv[i][j] 할당하여 저장
-            char argv_char = argv[i][j];
-            (*rsp)--; // -8만큼 이동
-            **(char **)rsp = argv_char; // 1 byte // 이중(다중) 포인터에 char 형으로 저장한다.
-        }
-        argv[i] = *(char **)rsp; // 배열에 rsp 주소 넣기
-    }
+	// file_name 파싱 결과를 담을 배열을 생성한다.
+	char *arg_address[MAXIMUM_NUMBER];
 
-    // Word-align padding
-    int pad = (int)*rsp % 8; // 64bit 컴퓨터라 8비트로 나누기 때문에, 패딩은 rsp % 8 = 0 으로 지정. (주소값을 8 나머지 으로)
-    for (int k = 0; k < pad; k++) // k < pad 
-    {
-        (*rsp)--; // 8만큼 뺀다.
-        **(uint8_t **)rsp = 0; // rsp의 값을 uint8_t 0 으로 저장한다.
-    }
-
-    // Pointers to the argument strings
-    (*rsp) -= 8;
-    **(char ***)rsp = 0; // 마지막 부분을 0으로 지정
-
-    for (int i = argc - 1; i >= 0; i--)
-    {
-        (*rsp) -= 8; // 8byte 만큼 빼면서 
-        **(char ***)rsp = argv[i]; // argv[i]의 주소값을 저장
-    }
-
-    (*rsp) -= 8; // 마지막 값을
-	// 마지막 fake address 값을 넣어준다.
-    **(void ***)rsp = 0; // rsp의 값을 0으로 지정한다.
-}
-
-/* 자식 리스트를 검색하여 프로세스 디스크립터의 주소 리턴 */
-struct thread *get_child_process(int pid)
-{
-	struct thread *cur = thread_current();
-	struct list *child_list = &cur->child_list;
-	for (struct list_elem *e = list_begin(child_list); e != list_end(child_list); e = list_next(e))
+	// word-align 전까지
+	// argv 뒤에서부터 인자들을 userstack에 저장한다.(NULL 끝 값은 제외한다.)
+	// /bin/ls -l foo bar
+	for (int i = argc-1; i >= 0; i--)
 	{
-		struct thread *t = list_entry(e, struct thread, child_elem);
-		/* 해당 pid가 존재하면 프로세스 디스크립터 반환 */
-		if (t->tid == pid)
-			return t;
+		int arg_len = strlen(argv[i]) + 1;	// 1은 sentinel(\0)을 의미한다.
+		if_->rsp = if_->rsp - (arg_len);	// 인자 크기만큼 스택 포인터를 이동시킨다.
+		memcpy(if_->rsp, argv[i], arg_len);
+		arg_address[i] = if_->rsp;			// arg_address 배열에 현재 문자열 시작 위치를 저장한다.
 	}
-	/* 리스트에 존재하지 않으면 NULL 리턴 */
-	return NULL;
-}
+	
+	// word-algin -> 정렬하기 위해
+	while (if_->rsp % 8 != 0)
+	{
+		if_->rsp--;
+		*(uint8_t *) if_->rsp = 0;	// 포인터 타입이 unit8_t이니까 rsp 데이터에 0을 넣는다.-> 패딩을 채운다. 
+	}
 
-// 파일 객체에 대한 파일 디스크립터를 생성하는 함수
-int process_add_file(struct file *f)
-{
-	struct thread *curr = thread_current();
-	struct file **fdt = curr->fdt;
+	// argv를 채운다.
+	for (int i = argc; i >= 0; i--)
+	{
+		if_->rsp = if_->rsp - 8;
+		if (i == argc)	// null sentinel 자리
+		{
+			*(char **) if_->rsp = 0;
+		}
+		else
+			memcpy(if_->rsp, &arg_address[i], sizeof(char *));
+	}
+	
+	// rdi, rsi 
+	if_->R.rdi = argc;
+	if_->R.rsi = if_->rsp;
 
-	// limit을 넘지 않는 범위 안에서 빈 자리 탐색
-	while(curr->next_fd < FDT_COUNT_LIMIT && fdt[curr->next_fd])
-		curr->next_fd++;					// 파일 디스크립터의 최대값 1 증가
-	if (curr->next_fd >= FDT_COUNT_LIMIT)	// 파일 디스크립터가 128보다 크면 오류 삭제
-		return -1;
-	fdt[curr->next_fd] = f;					// 비어 있는 fd에 file에 대한 값 넣기.
-
-	return curr->next_fd;
-}
-
-// 파일 객체를 검색하는 함수
-struct file *process_get_file(int fd)
-{
-	struct thread *curr = thread_current();
-	struct file **fdt = curr->fdt;
-
-	/* 파일 디스크립터에 해당하는 파일 객체를 리턴 */
-	/* 없을 시 NULL 리턴 */
-	if (fd < 2 || fd >= FDT_COUNT_LIMIT)	
-		return NULL;				
-	return fdt[fd];
-}
-
-// 파일 디스크립터 테이블에서 객체를 제거하는 함수
-void process_close_file(int fd)
-{
-	struct thread *curr = thread_current();
-	struct file **fdt = curr->fdt;
-	if (fd < 2 || fd >= FDT_COUNT_LIMIT) // 만약 fd 가 2보다 작거나 128 크기 이상이라면 오류 발생
-		return NULL;
-	fdt[fd] = NULL;
+	// fake address를 저장한다.
+	if_->rsp = if_->rsp - 8;
+	memset(if_->rsp, 0, sizeof(char *));
 }
