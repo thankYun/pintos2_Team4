@@ -7,6 +7,7 @@
 /* A counting semaphore. */
 struct semaphore {
 	unsigned value;             /* Current value. */
+	/* 여러 스레드 semaphore를 대기하고 있는 스레드들의 list인 FIFO로 구현 */
 	struct list waiters;        /* List of waiting threads. */
 };
 
@@ -38,6 +39,8 @@ void cond_init (struct condition *);
 void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
+
+bool cmp_sem_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 /* Optimization barrier.
  *

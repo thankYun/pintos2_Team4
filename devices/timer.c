@@ -93,10 +93,17 @@ timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
 
 	ASSERT (intr_get_level () == INTR_ON);
+<<<<<<< HEAD
 	if (timer_elapsed(start) < ticks)
 	{
 		thread_sleep (start + ticks);
 	}
+=======
+	//while (timer_elapsed (start) < ticks)
+	//	thread_yield ();
+	if(timer_elapsed(start) < ticks) // 타이머 틱 시작시간보다 ticks가 더 작다면 (당연히 작아야 하는 거 아님?)
+		thread_sleep(start + ticks); // start+ticks 만큼 재운다.
+>>>>>>> 8eab5c344a23949b238ea79d2fbe7c0f136fb6a5
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -128,10 +135,24 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;	// Number of timer ticks since OS booted.
 	thread_tick ();
+<<<<<<< HEAD
 	if (ticks >= get_next_tick_to_awake())
 	{
 		thread_awake(ticks);
 	}
+=======
+
+	int64_t awake_tick = get_next_tick_to_awake();
+	
+	if (awake_tick <= ticks){ // ==으로 해보기
+		thread_awake(ticks);
+	}
+	/* sleep queue 에서 깨어날 thread가 있는지 확인
+		sleep queue 에서 가장 빨리 깨어날 쓰레드의 tick값 확인
+		있다면 sleep queue를 순회하며 쓰레드 깨움
+			구현하게 될 함수인 thread_awake() 함수 사용
+	*/
+>>>>>>> 8eab5c344a23949b238ea79d2fbe7c0f136fb6a5
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
