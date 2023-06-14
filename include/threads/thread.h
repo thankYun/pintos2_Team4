@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h" // 이것을 추가해야 포인터를 쓸 수 있습니다.
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -27,6 +28,9 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+#define FDT_PAGES 2
+#define FDT_COUNT_LIMIT 128
 
 /* A kernel thread or user process.
  *
@@ -94,11 +98,27 @@ struct thread {
 	int64_t wakeup_tick;				/* 해당 쓰레드가 깨어나야 할 tick을 저장할 필드 */
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+
 	/*priority donation 관련 항목 추가*/
 	int init_priority;					/* donation 이후 우선순위를 초기화하기 위해 초기값 저장 */
 	struct lock *wait_on_lock;			/* 해당 스레드가 대기 하고 있는 lock자료구조의 주소를 저장 */
 	struct list donations;				/* multiple donation 을 고려하기 위해 사용 */
 	struct list_elem donation_elem;		/* multiple donation 을 고려하기 위해 사용 */
+
+	/*project 2 - SystemCall 항목 추가*/
+	int exit_status;					/* exit 호출 시 종료 status */
+	struct file **fdt;					/* 부모 프로세스의 디스크립터 */
+	int next_fd;						/* 다음 디스크립트를 가리키는 테이블 번호 */
+
+	struct intr_frame parent_if;		/* 프로세스 프로그램 메모리 적재 */
+	struct list child_list;				/* 자식 리스트 */
+	struct list_elem child_elem;		/* 자식 리스트 element */
+
+	struct semaphore load_sema;			/* load 세마포어 */
+	struct semaphore exit_sema;			/* exit 세마포어 */
+	struct semaphore wait_sema;			/* wait 세마포어 */
+
+	struct file *running; // 현재 실행중인 파일
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -155,6 +175,10 @@ int64_t get_next_tick_to_awake(void);
 
 void test_max_priority(void);
 bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+// project2
+bool cmp_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+bool cmp_thread_ticks(const struct list_elem *a, const struct list_elem *b, void *aux);
+// ---
 
 void donate_priority(void);
 void remove_with_lock(struct lock *lock);
@@ -162,5 +186,7 @@ void refresh_priority(void);
 
 bool
 thread_compare_donate_priority(const struct list_elem *x, const struct list_elem *y, void *aux UNUSED);
+
+void preempt_priority(void);
 
 #endif /* threads/thread.h */

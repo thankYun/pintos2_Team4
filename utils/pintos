@@ -55,7 +55,7 @@ class Pintos(object):
                 new[k] = v
         return new
 
-    def __prepare_scratch_files(self):
+    def _scratch_files(self):
         puts = []
         gets = []
         self.bdevs['scratch'] = get_temp_dsk_name()
@@ -77,7 +77,7 @@ class Pintos(object):
         disk.close()
         return puts, gets
 
-    def __prepare_kernel_argument(self, puts, gets):
+    def _kernel_argument(self, puts, gets):
         rem = []
         args = []
         for idx, arg in enumerate(self.args):
@@ -112,7 +112,7 @@ class Pintos(object):
                     data[0x1fe:])
         return name
 
-    def __prepare_cmd(self):
+    def _cmd(self):
         cmd = ['qemu-system-x86_64']
         if self.no_vga:
             cmd.append('-nographic')
@@ -154,11 +154,11 @@ class Pintos(object):
 
     def run(self):
         self.bdevs = self.__scan_dir()
-        puts, gets = (self.__prepare_scratch_files()
+        puts, gets = (self._scratch_files()
                       if self.host_fns or self.guest_fns else ([], []))
 
-        self.bdevs['os'] = self.__prepare_kernel_argument(puts, gets)
-        cmd = self.__prepare_cmd()
+        self.bdevs['os'] = self._kernel_argument(puts, gets)
+        cmd = self._cmd()
         args = {'stdin': sys.stdin, 'stdout': sys.stdout, 'stderr': sys.stderr}
         if self.timeout != 0:
             args['timeout'] = self.timeout

@@ -211,18 +211,33 @@ tid_t thread_create(const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
+	/* 현재 스레드의 자식으로 추가 */
+	list_push_back(&thread_current()->child_list, &t->child_elem);
+
+	/* File Descriptor 테이블 메모리 할당 */
+	t->fdt = palloc_get_multiple(PAL_ZERO, FDT_PAGES);
+	if (t->fdt == NULL) // 메모리 할당 실패시 에러 리턴.
+		return TID_ERROR; // -1
+
 	/* Add to run queue. */
 	thread_unblock(t);
-
-	/* 현재 실행중인 thread와 우선순위를 비교하여, 새로 생성된
-	thread의 우선순위가 높다면 thread_yield()를 통해 CPU를 양보 */
-	struct thread *curr = thread_current();
-	if (t->priority > curr->priority)
-	{
-		thread_yield();
-	}
+	preempt_priority();
 
 	return tid;
+}
+
+/* 현재 실행중인 thread와 우선순위를 비교하여, 새로 생성된
+thread의 우선순위가 높다면 thread_yield()를 통해 CPU를 양보 */
+void preempt_priority(void)
+{
+	if (thread_current() == idle_thread)
+		return;
+	if (list_empty(&ready_list))
+		return;
+	struct thread *curr = thread_current();
+	struct thread *ready = list_entry(list_front(&ready_list), struct thread, elem);
+	if (curr->priority < ready->priority) // ready_list에 현재 실행중인 스레드보다 우선순위가 높은 스레드가 있으면
+		thread_yield();
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
@@ -441,6 +456,13 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->init_priority = priority; 	// 초기 중요도 값 설정
 	t->wait_on_lock = NULL;			// 기다리는 락은 NULL로 설정
 	list_init(&t->donations);		// 스레드의 donations를 초기화
+
+	t->exit_status = 0;				/* exit status 는 0으로 초기화 */
+	t->next_fd = 2;					/* next_fd 는 2로 초기화 (0 - 표준 입력, 1 - 표춘출력) */
+	sema_init(&t->load_sema, 0);	/* load의 세마 초기화 */
+	sema_init(&t->exit_sema, 0);	/* exit의 세마 초기화 */
+	sema_init(&t->wait_sema, 0);	/* wait의 세마 초기화 */
+	list_init(&(t->child_list));	/* child_list를 초기화(head,tail 지정) */
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
