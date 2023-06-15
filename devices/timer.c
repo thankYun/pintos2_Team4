@@ -126,7 +126,7 @@ timer_print_stats (void) {
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
-	ticks++;
+	ticks++;	// Number of timer ticks since OS booted.
 	thread_tick ();
 
 	int64_t awake_tick = get_next_tick_to_awake();

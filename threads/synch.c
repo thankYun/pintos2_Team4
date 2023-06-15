@@ -106,22 +106,19 @@ sema_try_down (struct semaphore *sema) {
    This function may be called from an interrupt handler. */
 void
 sema_up (struct semaphore *sema) {
-   enum intr_level old_level;
+	enum intr_level old_level;
 
-   ASSERT (sema != NULL);
+	ASSERT (sema != NULL);
 
-   old_level = intr_disable ();
-   if (!list_empty (&sema->waiters)){
-      list_sort(&sema->waiters,cmp_priority,NULL);
-      /* waiter list에 있는 쓰레드의 우선순위가 변경 되었을 경우를 고려하여
-      waiter list를 정렬 (list_sort)*/
-      thread_unblock (list_entry (list_pop_front (&sema->waiters),
-               struct thread, elem));
-      /*priority preemption 기능 추가 (구현중)*/
-   }
-   sema->value++;
-   test_max_priority();
-   intr_set_level (old_level);
+	old_level = intr_disable ();
+	if (!list_empty (&sema->waiters)){
+		list_sort (&sema->waiters, cmp_priority, NULL);
+		thread_unblock (list_entry (list_pop_front (&sema->waiters),
+					struct thread, elem));
+	}
+	sema->value++;
+	preempt_priority();
+	intr_set_level (old_level);	
 }
 
 static void sema_test_helper (void *sema_);

@@ -30,7 +30,7 @@ typedef int tid_t;
 #define PRI_MAX 63                      /* Highest priority. */
 
 #define FDT_PAGES 2
-#define FDT_COUNT_LIMIT 128
+#define MAX_FDT_SIZE 128	
 
 /* A kernel thread or user process.
  *
@@ -95,9 +95,12 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
-	int64_t wakeup_tick;				/* 해당 쓰레드가 깨어나야 할 tick을 저장할 필드 */
+	int64_t wakeup_ticks;
+
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+	struct file **fd_table;
+	int f_index;			// 하나의 thread는 여러 파일을 관리한다. 관리하고 있는 파일들을 f_index로 관리한다.
 
 	/*priority donation 관련 항목 추가*/
 	int init_priority;					/* donation 이후 우선순위를 초기화하기 위해 초기값 저장 */
@@ -141,6 +144,8 @@ extern bool thread_mlfqs;
 
 void thread_init (void);
 void thread_start (void);
+void thread_sleep (int64_t);
+void thread_awake(int64_t);
 
 void thread_tick (void);
 void thread_print_stats (void);
@@ -161,6 +166,9 @@ void thread_yield (void);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
+void get_max_priority (void);
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
@@ -178,7 +186,6 @@ bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *au
 // project2
 bool cmp_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 bool cmp_thread_ticks(const struct list_elem *a, const struct list_elem *b, void *aux);
-// ---
 
 void donate_priority(void);
 void remove_with_lock(struct lock *lock);
