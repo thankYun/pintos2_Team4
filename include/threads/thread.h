@@ -5,11 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
-<<<<<<< HEAD
-#define USERPROG
-=======
 #include "threads/synch.h" // 이것을 추가해야 포인터를 쓸 수 있습니다.
->>>>>>> 8eab5c344a23949b238ea79d2fbe7c0f136fb6a5
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -33,12 +29,8 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
-<<<<<<< HEAD
-#define MAX_FDT_SIZE 128	
-=======
 #define FDT_PAGES 2
-#define FDT_COUNT_LIMIT 128
->>>>>>> 8eab5c344a23949b238ea79d2fbe7c0f136fb6a5
+#define MAX_FDT_SIZE 128	
 
 /* A kernel thread or user process.
  *
@@ -103,12 +95,8 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
-<<<<<<< HEAD
 	int64_t wakeup_ticks;
 
-=======
-	int64_t wakeup_tick;				/* 해당 쓰레드가 깨어나야 할 tick을 저장할 필드 */
->>>>>>> 8eab5c344a23949b238ea79d2fbe7c0f136fb6a5
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 	struct file **fd_table;
@@ -188,11 +176,6 @@ int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
 
-<<<<<<< HEAD
-void update_next_tick_to_awake (int64_t);
-
-int64_t get_next_tick_to_awake (void);
-=======
 void thread_sleep(int64_t);
 void thread_awake(int64_t);
 void update_next_tick_to_awake(int64_t);
@@ -203,7 +186,6 @@ bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *au
 // project2
 bool cmp_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 bool cmp_thread_ticks(const struct list_elem *a, const struct list_elem *b, void *aux);
-// ---
 
 void donate_priority(void);
 void remove_with_lock(struct lock *lock);
@@ -213,6 +195,5 @@ bool
 thread_compare_donate_priority(const struct list_elem *x, const struct list_elem *y, void *aux UNUSED);
 
 void preempt_priority(void);
->>>>>>> 8eab5c344a23949b238ea79d2fbe7c0f136fb6a5
 
 #endif /* threads/thread.h */

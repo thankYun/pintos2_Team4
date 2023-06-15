@@ -7,13 +7,7 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
-<<<<<<< HEAD
 #include "include/lib/user/syscall.h"
-#include "filesys/filesys.h"
-
-#define READ_FILE_NUMBER 0
-#define WRITE_FILE_NUMBER 1
-=======
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "userprog/process.h"
@@ -22,7 +16,6 @@
 #include "devices/input.h"
 #include "lib/kernel/stdio.h"
 #include "threads/palloc.h"
->>>>>>> 8eab5c344a23949b238ea79d2fbe7c0f136fb6a5
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -40,7 +33,7 @@ int write(int fd, const void *buffer, unsigned size);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
-tid_t fork(const char *thread_name, struct intr_frame *f);
+// tid_t fork(const char *thread_name, struct intr_frame *f);
 
 struct file *get_file_struct(int);
 
@@ -68,10 +61,6 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
-<<<<<<< HEAD
-
-=======
->>>>>>> 8eab5c344a23949b238ea79d2fbe7c0f136fb6a5
 	lock_init(&filesys_lock);
 }
 
@@ -79,7 +68,6 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-<<<<<<< HEAD
 	int sys_number = f->R.rax;
 	int address = f->rsp;
 
@@ -353,229 +341,4 @@ validate_address(void *addr){
 	if (pml4_get_page(thread_current()->pml4, addr) == NULL) {
 		exit(-1);
 	}
-=======
-	int systemcall_num = f->R.rax;
-	printf("%d\n", systemcall_num);
-
-	switch (systemcall_num)
-	{
-	case SYS_HALT:
-		halt();
-		break;
-	case SYS_EXIT:
-		exit(f->R.rdi);
-		break;
-	case SYS_FORK:
-		f->R.rax = fork(f->R.rdi, f);
-		break;
-	case SYS_EXEC:
-		f->R.rax = exec(f->R.rdi);
-		break;
-	case SYS_WAIT:
-		f->R.rax = wait(f->R.rdi);
-		break;
-	case SYS_CREATE:
-		f->R.rax = create(f->R.rdi, f->R.rsi);
-		break;
-	case SYS_REMOVE:
-		f->R.rax = remove(f->R.rdi);
-		break;
-	case SYS_OPEN:
-		f->R.rax = open(f->R.rdi);
-		break;
-	case SYS_FILESIZE:
-		f->R.rax = filesize(f->R.rdi);
-		break;
-	case SYS_READ:
-		f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
-		break;
-	case SYS_WRITE:
-		f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
-		break;
-	case SYS_SEEK:
-		seek(f->R.rdi, f->R.rsi);
-		break;
-	case SYS_TELL:
-		f->R.rax = tell(f->R.rdi);
-		break;
-	case SYS_CLOSE:
-		close(f->R.rdi);
-	}
-}
-
-void check_address(void *addr){
-	if (addr == NULL)
-		exit(-1);
-	if (!is_user_vaddr(addr))
-		exit(-1);
-	if (pml4_get_page(thread_current()->pml4, addr) == NULL)
-		exit(-1);
-	// if (addr == NULL || !(is_user_vaddr(addr))||pml4_get_page(cur->pml4, addr) == NULL){
-	// 	exit(-1);
-	// }
-}
-
-// pintos를 종료시키는 시스템 콜
-void halt(void){
-	power_off(); // 핀토스를 종료시키는 함수
-}
-
-// 현재 프로세스를 종료시키는 시스템 콜
-void exit(int status){
-	struct thread *cur = thread_current();
-	cur->exit_status = status;
-	printf("%s: exit(%d)\n",thread_name(), status);
-	thread_exit();
-}
-
-//파일을 생성하는 시스템 콜
-bool create(const char *file, unsigned initial_size){
-	check_address(file);
-	return filesys_create(file,initial_size); // 파일 이름과 파일 사이즈를 인자 값으로 받아 파일을 생성하는 함수
-}
-
-//파일을 삭제하는 시스템 콜
-bool remove(const char *file){
-	check_address(file);
-	return filesys_remove(file); // 파일 이름에 해당하는 파일을 제거하는 함수
-}
-
-int exec(const char *cmd_line)
-{
-	check_address(cmd_line);	
-
-	// 새 스레드를 생성하지 않고 process_exec을 호출한다.
-
-	char *cmd_line_copy;	// filename으로 const char* 복사본을 만든다. 
-	cmd_line_copy = palloc_get_page(0);
-	if (cmd_line_copy == NULL) // 메모리 할당 실패시 exit(-1)
-		exit(-1);
-	strlcpy(cmd_line_copy, cmd_line, PGSIZE); // cmd_line을 복사한다.
-
-	if (process_exec(cmd_line_copy) == -1)
-		exit(-1); // 실패 시 status -1로 종료한다.
-}
-
-int wait(int pid)
-{
-	return process_wait(pid);
-}
-
-// 파일을 열 때 사용하는 시스템 콜
-int open(const char *file_name)
-{
-	check_address(file_name);
-	struct file *file = filesys_open(file_name);
-	if (file == NULL)
-		return -1;
-	int fd = process_add_file(file);
-	if (fd == -1) // 여기에 땀 있었음.(닦아줌)
-		file_close(file);
-	return fd;
-}
-
-// 파일의 크기를 알려주는 시스템 콜
-int filesize(int fd)
-{
-	struct file *file = process_get_file(fd);
-	if (file == NULL)
-		return -1;
-	return file_length(file);
-}
-
-// 열린 파일의 데이터를 읽는 시스템 콜
-int read(int fd, void *buffer, unsigned size)
-{
-	check_address(buffer);
-
-	char *ptr = (char *)buffer;
-	int bytes_read = 0;
-
-	lock_acquire(&filesys_lock); // 락을 요구합니다.
-	if(fd == STDIN_FILENO)
-	{
-		for (int i = 0; i < size; i++)
-		{
-			*ptr++ = input_getc();
-			bytes_read++;
-		}
-		lock_release(&filesys_lock);
-	}
-	else
-	{
-		if (fd < 2)
-		{
-			lock_release(&filesys_lock);
-			return -1;
-		}
-		struct file *file = process_get_file(fd);
-		if (file == NULL)
-		{
-			lock_release(&filesys_lock);
-			return -1;
-		}
-		bytes_read = file_read(file, buffer, size);
-		lock_release(&filesys_lock);
-	}
-	return bytes_read;
-}
-
-// 열린 파일의 데이터를 기록 시스템 콜
-int write(int fd, const void *buffer, unsigned size)
-{
-	check_address(buffer);
-	int bytes_write = 0;
-	if (fd == STDOUT_FILENO)
-	{
-		putbuf(buffer, size);
-		bytes_write = size;
-	}
-	else
-	{
-		if (fd < 2)
-			return -1;
-		struct file *file = process_get_file(fd);
-		if (file == NULL)
-			return -1;
-		lock_acquire(&filesys_lock);
-		bytes_write = file_write(file, buffer, size);
-		lock_release(&filesys_lock);
-	}
-	return bytes_write;
-}
-
-
-// 열린 파일의 위치를 이동하는 시스템 콜
-void seek(int fd, unsigned position)
-{
-	struct file *file = process_get_file(fd);
-	if (file == NULL)
-		return;
-	file_seek(file, position);
-}
-
-// 열린 파일의 위치를 알려주는 시스템 콜
-unsigned tell(int fd)
-{
-	struct file *file = process_get_file(fd);
-	if (file == NULL)
-		return;
-	return file_tell(file);
-}
-
-// 열린 파일을 닫는 시스템 콜
-void close(int fd)
-{
-	struct file *file = process_get_file(fd);
-	if (file == NULL)
-		return;
-	file_close(file);
-	process_close_file(fd);
-}
-
-
-tid_t fork(const char *thread_name, struct intr_frame *f)
-{
-	return process_fork(thread_name, f);
->>>>>>> 8eab5c344a23949b238ea79d2fbe7c0f136fb6a5
 }
