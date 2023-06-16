@@ -66,7 +66,7 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	int systemcall_num = f->R.rax;
-	printf("%d\n", systemcall_num);
+	// printf("%d\n", systemcall_num);
 
 	switch (systemcall_num)
 	{
