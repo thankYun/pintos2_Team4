@@ -1,0 +1,25 @@
+FAIL
+Kernel panic in run: PANIC at ../../userprog/exception.c:97 in kill(): Kernel bug - unexpected interrupt in kernel
+Call stack: 0x8004217f3b 0x800421ccad 0x8004208fe7 0x8004209405 0x800421fae3 0x800421eb7f 0x800421c290 0x800422132b 0x8004220f34 0x8004220dec 0x800421cda4 0x8004208fe7 0x8004209405 0x800421fbfa 0x800421eb7f 0x800421d54d 0x800421d0db 0x800421ce4c 0x4001d0 0x40053e 0x400fdf
+Translation of call stack:
+0x0000008004217f3b: debug_panic (lib/kernel/debug.c:32)
+0x000000800421ccad: kill (userprog/exception.c:103)
+0x0000008004208fe7: intr_handler (threads/interrupt.c:352)
+0x0000008004209405: intr_entry (threads/intr-stubs.o:?)
+0x000000800421fae3: inode_read_at (filesys/inode.c:190)
+0x000000800421eb7f: file_read (filesys/file.c:74)
+0x000000800421c290: lazy_load_segment (userprog/process.c:823)
+0x000000800422132b: uninit_initialize (vm/uninit.c:61 (discriminator 4))
+0x0000008004220f34: vm_do_claim_page (vm/vm.c:260)
+0x0000008004220dec: vm_try_handle_fault (vm/vm.c:213)
+0x000000800421cda4: page_fault (userprog/exception.c:145)
+0x0000008004208fe7: intr_handler (threads/interrupt.c:352)
+0x0000008004209405: intr_entry (threads/intr-stubs.o:?)
+0x000000800421fbfa: inode_read_at (filesys/inode.c:219)
+0x000000800421eb7f: file_read (filesys/file.c:74)
+0x000000800421d54d: read (userprog/syscall.c:228)
+0x000000800421d0db: syscall_handler (userprog/syscall.c:101)
+0x000000800421ce4c: no_sti (userprog/syscall-entry.o:?)
+0x00000000004001d0: (unknown)
+0x000000000040053e: (unknown)
+0x0000000000400fdf: (unknown)

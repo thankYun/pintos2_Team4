@@ -16,4 +16,14 @@ int process_add_file(struct file *f);
 struct file *process_get_file(int fd);
 void process_close_file(int fd);
 struct thread *get_child_process(int pid);
+//! project 3
+static bool load_segment(struct file *file, off_t ofs, uint8_t *uapge, uint32_t read_bytes, uint32_t zero_bytes, bool writable);
+static bool lazy_load_segment(struct page *page, void *aux);
+struct for_lazy{
+	struct file *file;
+	off_t ofs;
+	uint32_t read_bytes;
+	uint32_t zero_bytes;
+};
+
 #endif /* userprog/process.h */

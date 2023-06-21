@@ -15,6 +15,10 @@
         "filesys.h": "c",
         "synch.h": "c",
         "input.h": "c",
-        "off_t.h": "c"
+        "off_t.h": "c",
+        "hash.h": "c",
+        "inspect.h": "c",
+        "uninit.h": "c",
+        "vm.h": "c"
     }
 }
