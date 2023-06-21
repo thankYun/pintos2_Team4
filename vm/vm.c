@@ -278,7 +278,7 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, struct
 
 	hash_first (&i, &src->spt_hash);
 	while (hash_next (&i))
-	{
+	{	
 		struct page *src_page = hash_entry (hash_cur (&i), struct page, hash_elem);
 		//...f를 사용하여 작업 수행...
 		enum vm_type type = src_page->operations->type;
