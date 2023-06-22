@@ -15,6 +15,7 @@
 #include "devices/input.h"
 #include "lib/kernel/stdio.h"
 #include "threads/palloc.h"
+#include "vm/vm.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -67,7 +68,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	int systemcall_num = f->R.rax;
 	// printf("%d\n", systemcall_num);
-
+#ifdef VM
+	thread_current()->rsp = f -> rsp;
+#endif
 	switch (systemcall_num)
 	{
 	case SYS_HALT:
@@ -141,8 +144,12 @@ void exit(int status){
 
 //파일을 생성하는 시스템 콜
 bool create(const char *file, unsigned initial_size){
+	lock_acquire(&filesys_lock);
 	check_address(file);
-	return filesys_create(file,initial_size); // 파일 이름과 파일 사이즈를 인자 값으로 받아 파일을 생성하는 함수
+	bool success = filesys_create(file, initial_size);
+	lock_release(&filesys_lock);
+	return success;
+	// return filesys_create(file,initial_size); // 파일 이름과 파일 사이즈를 인자 값으로 받아 파일을 생성하는 함수
 }
 
 //파일을 삭제하는 시스템 콜
@@ -176,12 +183,17 @@ int wait(int pid)
 int open(const char *file_name)
 {
 	check_address(file_name);
+	lock_acquire(&filesys_lock);
 	struct file *file = filesys_open(file_name);
 	if (file == NULL)
+	{
+		lock_release(&filesys_lock);
 		return -1;
+	}
 	int fd = process_add_file(file);
 	if (fd == -1) // 여기에 땀 있었음.(닦아줌)
 		file_close(file);
+	lock_release(&filesys_lock);
 	return fd;
 }
 
@@ -224,6 +236,12 @@ int read(int fd, void *buffer, unsigned size)
 		{
 			lock_release(&filesys_lock);
 			return -1;
+		}
+		struct page *page = spt_find_page(&thread_current()->spt, buffer);
+		if (page && !page->writable)
+		{
+			lock_release(&filesys_lock);
+			exit(-1);
 		}
 		bytes_read = file_read(file, buffer, size);
 		lock_release(&filesys_lock);

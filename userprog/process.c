@@ -21,6 +21,7 @@
 #define VM
 #ifdef VM
 #include "vm/vm.h"
+#include "userprog/syscall.h"
 #endif
 
 static void process_cleanup (void);
@@ -114,13 +115,13 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED)
 	sema_down(&child->load_sema);
 
 	// 자식이 로드되다가 오류로 exit한 경우
-	if (child->exit_status == -2)
+	if (child->exit_status == TID_ERROR)
 	{
 		// 자식이 종료되었으므로 자식 리스트에서 제거한다.
 		// 이거 넣으면 간헐적으로 실패함 (syn-read)
 		// list_remove(&child->child_elem);
 		// 자식이 완전히 종료되고 스케줄링이 이어질 수 있도록 자식에게 signal을 보낸다.
-		sema_up(&child->exit_sema);
+		// sema_up(&child->exit_sema);
 		// 자식 프로세스의 pid가 아닌 TID_ERROR를 반환한다.
 		return TID_ERROR;
 	}
@@ -247,8 +248,9 @@ __do_fork (void *aux) {
 		current->fdt[i] = file;
 	}
 	current->next_fd = parent->next_fd;
-
+	lock_acquire(&filesys_lock);
 	sema_up(&current->load_sema);
+	lock_release(&filesys_lock);
 	process_init ();
 
 	/* Finally, switch to the newly created process.마지막으로 새로 생성된 프로세스로 전환합니다. */
@@ -256,7 +258,7 @@ __do_fork (void *aux) {
 		do_iret (&if_);
 error:
 	sema_up(&current->load_sema);
-	exit(-2);
+	exit(TID_ERROR);
 }
 
 /** Switch the current execution context to the f_name.
@@ -826,7 +828,7 @@ lazy_load_segment (struct page *page, void *aux) {
 		return false;
 	}
 	memset(page->frame->kva + for_lazy->read_bytes, 0, for_lazy->zero_bytes);
-	free(for_lazy);
+	// free(for_lazy);
 	return true;
 }
 

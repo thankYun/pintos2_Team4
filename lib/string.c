@@ -277,9 +277,7 @@ strlen (const char *string) {
 		continue;
 	return p - string;
 }
-
-/* If STRING is less than MAXLEN characters in length, returns
-   its actual length.  Otherwise, returns MAXLEN. */
+/* If STRING is less than MAXLEN characters in length, returns its actual length.  Otherwise, returns MAXLEN. */
 size_t
 strnlen (const char *string, size_t maxlen) {
 	size_t length;
@@ -290,7 +288,7 @@ strnlen (const char *string, size_t maxlen) {
 }
 
 /* Copies string SRC to DST.  If SRC is longer than SIZE - 1
-   characters, only SIZE - 1 characters are copied.  A null
+characters, only SIZE - 1 characters are copied.  A null
    terminator is always written to DST, unless SIZE is 0.
    Returns the length of SRC, not including the null terminator.
 
