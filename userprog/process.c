@@ -812,7 +812,7 @@ install_page (void *upage, void *kpage, bool writable) {
 	프로젝트 2에만 구현하려면 상단 블록에 구현하십시오.
 	*/
 
-static bool
+bool
 lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */

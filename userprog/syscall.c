@@ -34,6 +34,9 @@ void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
 tid_t fork(const char *thread_name, struct intr_frame *f);
+void *mmap(void *addr, size_t length, int writable, int fd, off_t offset);
+void munmap(void *addr);
+
 
 /* System call.
  *
@@ -64,7 +67,7 @@ syscall_init (void) {
 
 /* The main system call interface */
 void
-syscall_handler (struct intr_frame *f UNUSED) {
+syscall_handler (struct intr_frame *f) {
 	// TODO: Your implementation goes here.
 	int systemcall_num = f->R.rax;
 	// printf("%d\n", systemcall_num);
@@ -114,9 +117,17 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		break;
 	case SYS_CLOSE:
 		close(f->R.rdi);
+		break;
+	case SYS_MMAP:
+		f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+		break;
+	case SYS_MUNMAP:
+        munmap(f->R.rdi);
+        break;
 	}
-}
 
+}
+ 
 void check_address(void *addr){
 	if (addr == NULL)
 		exit(-1);
@@ -144,10 +155,8 @@ void exit(int status){
 
 //파일을 생성하는 시스템 콜
 bool create(const char *file, unsigned initial_size){
-	lock_acquire(&filesys_lock);
 	check_address(file);
 	bool success = filesys_create(file, initial_size);
-	lock_release(&filesys_lock);
 	return success;
 	// return filesys_create(file,initial_size); // 파일 이름과 파일 사이즈를 인자 값으로 받아 파일을 생성하는 함수
 }
@@ -306,4 +315,18 @@ void close(int fd)
 tid_t fork(const char *thread_name, struct intr_frame *f)
 {
 	return process_fork(thread_name, f);
+}
+
+void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
+{
+	struct file * f = process_get_file(fd);
+	/*addr이 없는 경우, addr이 정렬되지 않은 경우, 오프셋이 정렬되지 않은 경우, 유저 영역이 아닌 경우, 이미 할당된 경우, fd로 파일을 가져올 수 없는 경우, length가 0이거나 음수인 경우*/
+	if (!addr || addr != pg_round_down(addr) || offset != pg_round_down(offset) || !is_user_vaddr(addr) || !is_user_vaddr(addr-length+offset) ||spt_find_page(&thread_current()->spt, addr) || length <= 0 || fd < 2 || f ==NULL || file_length(f)==0){
+		return NULL;
+	}
+	return do_mmap(addr,length,writable,f,offset);
+}
+
+void munmap(void *addr){
+	do_munmap(addr);
 }
