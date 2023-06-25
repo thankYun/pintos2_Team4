@@ -27,7 +27,14 @@ static const struct page_operations uninit_ops = {
 	.type = VM_UNINIT,
 };
 
-/* DO NOT MODIFY this function 이 함수를 수정하지 마십시오. */
+/** DO NOT MODIFY this function 이 함수를 수정하지 마십시오. 
+ * @param page 초기화할 페이지 구조체
+ * @param upage *p를 할당할 가상 주소
+ * @param init *p의내용을 초기화
+ * @param type 타입
+ * @param aux init에 필요한 보조값
+ * @param initialize p를 타입에 맞게 초기화
+*/
 void
 uninit_new (struct page *page, void *va, vm_initializer *init,
 		enum vm_type type, void *aux,

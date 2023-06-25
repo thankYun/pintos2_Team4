@@ -6,7 +6,7 @@
 #include "hash.h"
 #include "threads/thread.h"
 #include "threads/mmu.h"
-
+#include "userprog/process.h"
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes.
  각 서브시스템의 초기화 코드를 호출하여 가상 메모리 서브시스템을 초기화합니다 */
@@ -303,6 +303,22 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, struct
 			vm_alloc_page_with_initializer(VM_ANON,upage,writable,init,aux);
 			continue;
 		}
+		if (type ==VM_FILE)
+		{
+			struct for_lazy *file_aux =malloc(sizeof (struct for_lazy));
+			file_aux->file = src_page -> file.file;
+			file_aux->ofs = src_page ->file.ofs;
+			file_aux-> read_bytes = src_page -> file.read_bytes;
+			if (!vm_alloc_page_with_initializer(type, upage, writable, NULL, file_aux)){
+				return false;
+			}
+			struct page *file_page = spt_find_page(dst,upage);
+			file_backed_initializer(file_page,type,NULL);
+
+			pml4_set_page(thread_current()->pml4, file_page ->va, src_page -> frame->kva,src_page->writable);
+			continue;
+		}
+	
 		if (!vm_alloc_page(type, upage, writable))
 			return false;
 		if (!vm_claim_page(upage))
